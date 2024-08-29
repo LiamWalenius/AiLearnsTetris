@@ -18,15 +18,22 @@ def main():
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 sys.exit()
-            if event.type == update_event:
+            elif event.type == update_event:
                 game.update()
-            if event.type == pygame.KEYDOWN:
-                if event.key == pygame.K_a:
-                    game.active_piece.move_left()
-                elif event.key == pygame.K_d:
-                    game.active_piece.move_right()
-                elif event.key == pygame.K_r:
-                    game.active_piece.rotate()
+            elif event.type == pygame.KEYDOWN:
+                match event.key:
+                    case pygame.K_ESCAPE:
+                        sys.exit()
+                    case pygame.K_s:
+                        game.move_active_piece_down()
+                    case pygame.K_a:
+                        game.move_active_piece_left()
+                    case pygame.K_d:
+                        game.move_active_piece_right()
+                    case pygame.K_SPACE:
+                        game.move_active_piece_to_bottom()
+                    case pygame.K_r:
+                        game.rotate_active_piece()
 
         surf.fill(colours.BLACK)
         game.draw(surf)

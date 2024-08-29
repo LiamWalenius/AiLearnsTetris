@@ -1,10 +1,10 @@
-from dataclasses import dataclass
+from typing import NamedTuple
 from enum import Enum
 import pygame
 import colours
+import random
 
-@dataclass
-class Position:
+class Position(NamedTuple):
     r: int
     c: int
 
@@ -15,29 +15,18 @@ class Shape:
     def __iter__(self):
         return iter(self._data)
 
-    def get(self, r: int, c: int) -> bool:
-        return self._data[r][c]
-
 class Piece:
     def __init__(self, shapes: list[Shape]) -> None:
         self.shapes = shapes
         self.active_shape_ind = 0
         self.pos = Position(0, 1)
 
+    def reset(self) -> None:
+        self.active_shape_ind = 0
+        self.pos = Position(0, 1)
+
     def rotate(self) -> None:
         self.active_shape_ind = (self.active_shape_ind + 1) % len(self.shapes)
-
-    def move_up(self) -> None:
-        self.pos.r -= 1
-
-    def move_down(self) -> None:
-        self.pos.r += 1
-
-    def move_left(self) -> None:
-        self.pos.c -= 1
-
-    def move_right(self) -> None:
-        self.pos.c += 1
 
     def get_active_shape(self) -> Shape:
         return self.shapes[self.active_shape_ind]
@@ -75,39 +64,70 @@ class Tetris:
                 [0, 0, 0, 0]
             ])
         ]))
-        self.active_piece = self.pieces[0]
-        self.grid = [[GridNode.EMPTY for _ in range(Tetris.GRID_WIDTH)] for _ in range(Tetris.GRID_HEIGHT)]
+        self._active_piece: Piece = random.choice(self.pieces)
+        self._grid = [[GridNode.EMPTY for _ in range(Tetris.GRID_WIDTH)] for _ in range(Tetris.GRID_HEIGHT)]
         for i in range(Tetris.GRID_HEIGHT):
-            self.grid[i][0] = self.grid[i][-1] = GridNode.WALL
-        self.grid[-1] = [GridNode.WALL for _ in range(Tetris.GRID_WIDTH)]
+            self._grid[i][0] = self._grid[i][-1] = GridNode.WALL
+        self._grid[-1] = [GridNode.WALL for _ in range(Tetris.GRID_WIDTH)]
 
     def update(self) -> None:
-        self.active_piece.move_down()
+        self.move_active_piece_down()
 
-        for r, row in enumerate(self.active_piece.get_active_shape()):
+        if self.active_piece_is_colliding():
+            self.move_active_piece_up()
+            self.make_active_piece_blocks()
+
+    def get_active_piece_positions(self) -> list[Position]:
+        positions = []
+
+        for r, row in enumerate(self._active_piece.get_active_shape()):
             for c, val in enumerate(row):
                 if not val:
                     continue
 
-                grid_r = self.active_piece.pos.r + r
-                grid_c = self.active_piece.pos.c + c
+                grid_r = self._active_piece.pos.r + r
+                grid_c = self._active_piece.pos.c + c
 
-                if self.grid[grid_r][grid_c] != GridNode.EMPTY:
-                    self.active_piece.move_up()
-                    self.make_active_piece_blocks()
-                    return
+                positions.append(Position(grid_r, grid_c))
+
+        return positions
 
     def make_active_piece_blocks(self) -> None:
-        pass
+        for r, c in self.get_active_piece_positions():
+            self._grid[r][c] = GridNode.BLOCK
+
+        self._active_piece.reset()
+        self._active_piece = random.choice(self.pieces)
 
     def rotate_active_piece(self) -> None:
-        self.active_piece.rotate()
+        self._active_piece.rotate()
+
+    def move_active_piece_up(self) -> None:
+        self._active_piece.pos = Position(self._active_piece.pos.r - 1, self._active_piece.pos.c)
+
+    def move_active_piece_down(self) -> None:
+        self._active_piece.pos = Position(self._active_piece.pos.r + 1, self._active_piece.pos.c)
+
+    def move_active_piece_left(self) -> None:
+        self._active_piece.pos = Position(self._active_piece.pos.r, self._active_piece.pos.c - 1)
+
+    def move_active_piece_right(self) -> None:
+        self._active_piece.pos = Position(self._active_piece.pos.r, self._active_piece.pos.c + 1)
+
+    def move_active_piece_to_bottom(self) -> None:
+        while not self.active_piece_is_colliding():
+            self.move_active_piece_down()
+        self.move_active_piece_up()
+        self.update()
+
+    def active_piece_is_colliding(self) -> bool:
+        return any(self._grid[r][c] != GridNode.EMPTY for r, c in self.get_active_piece_positions())
 
     def draw(self, surf: pygame.surface.Surface) -> None:
         width, height = surf.get_size()
         node_size = min(width // Tetris.GRID_WIDTH, height // Tetris.GRID_HEIGHT)
 
-        for r, row in enumerate(self.grid):
+        for r, row in enumerate(self._grid):
             for c, node in enumerate(row):
                 draw_rect = pygame.Rect(
                     c * node_size,
@@ -118,16 +138,12 @@ class Tetris:
 
                 pygame.draw.rect(surf, Tetris.NODE_COLOURS[node], draw_rect)
 
-        for r, row in enumerate(self.active_piece.get_active_shape()):
-            for c, node in enumerate(row):
-                if not node:
-                    continue
+        for r, c in self.get_active_piece_positions():
+            draw_rect = pygame.Rect(
+                c * node_size,
+                r * node_size,
+                node_size,
+                node_size
+            )
 
-                draw_rect = pygame.Rect(
-                    (self.active_piece.pos.c + c) * node_size,
-                    (self.active_piece.pos.r + r) * node_size,
-                    node_size,
-                    node_size
-                )
-
-                pygame.draw.rect(surf, colours.RED, draw_rect)
+            pygame.draw.rect(surf, colours.BLUE, draw_rect)
