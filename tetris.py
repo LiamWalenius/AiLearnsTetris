@@ -1,6 +1,7 @@
 from typing import NamedTuple
 from enum import Enum
 import pygame
+import pygame.freetype
 import colours
 import random
 
@@ -9,8 +10,8 @@ class Position(NamedTuple):
     c: int
 
 class Shape:
-    def __init__(self, data: list[list[int]]):
-        self._data = [[bool(i) for i in row] for row in data]
+    def __init__(self, data: list[str]):
+        self._data = [[c == '1' for c in line] for line in data]
 
     def __iter__(self):
         return iter(self._data)
@@ -28,6 +29,17 @@ class Piece:
 
     def get_active_shape(self) -> Shape:
         return self.shapes[self.active_shape_ind]
+
+def load_pieces_from_file(path: str) -> list[Piece]:
+    pieces = []
+
+    with open(path, 'r') as in_file:
+        for line in in_file:
+            line = line.strip()
+            shapes = [Shape(s.split()) for s in line.split(',')]
+            pieces.append(Piece(shapes, Position(0, 4)))
+
+    return pieces
 
 class GridNode(Enum):
     EMPTY = 0
@@ -55,22 +67,10 @@ class Tetris:
     RIGHT = Position(0, 1)
 
     def __init__(self) -> None:
-        self.pieces: list[Piece] = []
-        self.pieces.append(Piece([
-            Shape([
-                [0, 1, 0, 0],
-                [0, 1, 0, 0],
-                [0, 1, 0, 0],
-                [0, 1, 0, 0]
-            ]),
-            Shape([
-                [0, 0, 0, 0],
-                [1, 1, 1, 1],
-                [0, 0, 0, 0],
-                [0, 0, 0, 0]
-            ])
-        ], Position(0, Tetris.GRID_WIDTH // 2)))
-        self._active_piece: Piece = random.choice(self.pieces)
+        self._pieces: list[Piece] = load_pieces_from_file('pieces.txt')
+        random.shuffle(self._pieces)
+        self._active_piece_ind = 0
+        self._active_piece: Piece = self._pieces[self._active_piece_ind]
         self._grid = [get_empty_row() for _ in range(Tetris.GRID_HEIGHT-1)]
         self._grid.append([GridNode.WALL for _ in range(Tetris.GRID_WIDTH)])
         self._score = 0
@@ -98,9 +98,16 @@ class Tetris:
         for r, c in self.get_active_piece_grid_positions():
             self._grid[r][c] = GridNode.BLOCK
 
-        self._active_piece.reset()
-        self._active_piece = random.choice(self.pieces)
+        self.increment_active_piece()
         self.check_for_full_rows()
+
+    def increment_active_piece(self):
+        self._active_piece.reset()
+        self._active_piece_ind += 1
+        if self._active_piece_ind == len(self._pieces):
+            self._active_piece_ind = 0
+            random.shuffle(self._pieces)
+        self._active_piece = self._pieces[self._active_piece_ind]
 
     def row_is_full(self, r: int) -> bool:
         return all(node == GridNode.BLOCK for node in self._grid[r][1:-1])
@@ -166,9 +173,9 @@ class Tetris:
     def move_active_piece_to_bottom(self) -> None:
         while self.active_piece_can_move(Tetris.DOWN):
             self.move_active_piece_down()
-        self.update()
+        self.make_active_piece_blocks()
 
-    def draw(self, surf: pygame.surface.Surface) -> None:
+    def draw(self, surf: pygame.surface.Surface, font: pygame.freetype.Font) -> None:
         width, height = surf.get_size()
         node_size = min(width // Tetris.GRID_WIDTH, height // Tetris.GRID_HEIGHT)
 
@@ -192,3 +199,5 @@ class Tetris:
             )
 
             pygame.draw.rect(surf, colours.BLUE, draw_rect)
+
+        font.render_to(surf, (500, 100), f'Score: {self._score}', fgcolor=colours.WHITE, size=30)

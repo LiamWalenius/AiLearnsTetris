@@ -1,4 +1,5 @@
 import pygame
+import pygame.freetype
 import tetris
 import sys
 import colours
@@ -12,6 +13,7 @@ def main():
     update_event = pygame.event.custom_type()
     pygame.time.set_timer(update_event, 500)
     game = tetris.Tetris()
+    arial_font = pygame.freetype.SysFont('Arial', 30)
 
     while True:
         for event in pygame.event.get():
@@ -35,7 +37,7 @@ def main():
                         game.rotate_active_piece()
 
         surf.fill(colours.BLACK)
-        game.draw(surf)
+        game.draw(surf, arial_font)
         pygame.display.update()
 
 
