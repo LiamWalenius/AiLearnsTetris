@@ -9,9 +9,8 @@ def main():
     pygame.display.set_caption('Tetris')
     frame_counter = pygame.time.Clock()
     frame_counter.tick(60)
-    update_time = 500
     update_event = pygame.event.custom_type()
-    pygame.time.set_timer(update_event, update_time)
+    pygame.time.set_timer(update_event, 500)
     game = tetris.Tetris()
 
     while True:
