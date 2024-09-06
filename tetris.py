@@ -71,12 +71,14 @@ class Tetris:
         self._grid.append([GridNode.WALL for _ in range(Tetris.GRID_WIDTH)])
         self._grid_colours: list[list[pygame.Color]] = [[colours.WHITE for _ in range(Tetris.GRID_WIDTH)] for _ in range(Tetris.GRID_HEIGHT)]
         self._score = 0
+        self._has_lost = False
 
     def update(self) -> None:
-        if self.active_piece_can_move(Tetris.DOWN):
-            self.move_active_piece_down()
-        else:
-            self.make_active_piece_blocks()
+        if not self._has_lost:
+            if self.active_piece_can_move(Tetris.DOWN):
+                self.move_active_piece_down()
+            else:
+                self.make_active_piece_blocks()
 
     def get_active_piece_grid_positions(self) -> list[Position]:
         positions = []
@@ -107,6 +109,12 @@ class Tetris:
             random.shuffle(self._pieces)
         self._active_piece = self._pieces[self._active_piece_ind]
 
+        if self.active_piece_is_colliding():
+            self.lose()
+
+    def lose(self) -> None:
+        self._has_lost = True
+
     def row_is_full(self, r: int) -> bool:
         return all(node == GridNode.BLOCK for node in self._grid[r][1:-1])
 
@@ -120,8 +128,8 @@ class Tetris:
 
         self.increase_score(full_row_count)
 
-    def clear_row(self, r: int) -> None:
-        for r in range(r, 0, -1):
+    def clear_row(self, row_ind: int) -> None:
+        for r in range(row_ind, 0, -1):
             self._grid[r] = self._grid[r-1]
         self._grid[0] = get_empty_row(Tetris.GRID_WIDTH)
 
@@ -149,29 +157,25 @@ class Tetris:
                 self._active_piece.active_shape_ind = start_shape_ind
 
     def active_piece_can_move(self, offset: Position) -> bool:
-        return all(
-            self._grid[r + offset.r][c + offset.c] == GridNode.EMPTY
-            for r, c in self.get_active_piece_grid_positions()
-        )
+        return all(self._grid[r + offset.r][c + offset.c] == GridNode.EMPTY for r, c in self.get_active_piece_grid_positions())
 
     def move_active_piece(self, offset: Position) -> None:
+        if self._has_lost or not self.active_piece_can_move(offset):
+            return
+
         self._active_piece.pos = Position(self._active_piece.pos.r + offset.r, self._active_piece.pos.c + offset.c)
 
     def move_active_piece_up(self) -> None:
-        if self.active_piece_can_move(Tetris.UP):
-            self.move_active_piece(Tetris.UP)
+        self.move_active_piece(Tetris.UP)
 
     def move_active_piece_down(self) -> None:
-        if self.active_piece_can_move(Tetris.DOWN):
-            self.move_active_piece(Tetris.DOWN)
+        self.move_active_piece(Tetris.DOWN)
 
     def move_active_piece_left(self) -> None:
-        if self.active_piece_can_move(Tetris.LEFT):
-            self.move_active_piece(Tetris.LEFT)
+        self.move_active_piece(Tetris.LEFT)
 
     def move_active_piece_right(self) -> None:
-        if self.active_piece_can_move(Tetris.RIGHT):
-            self.move_active_piece(Tetris.RIGHT)
+        self.move_active_piece(Tetris.RIGHT)
 
     def move_active_piece_to_bottom(self) -> None:
         while self.active_piece_can_move(Tetris.DOWN):
@@ -212,3 +216,6 @@ class Tetris:
             pygame.draw.rect(surf, self._active_piece.colour, draw_rect)
 
         font.render_to(surf, (500, 100), f'Score: {self._score}', fgcolor=colours.WHITE, size=30)
+
+        if self._has_lost:
+            font.render_to(surf, (500, 300), 'Game over!', fgcolor=colours.WHITE, size=30)

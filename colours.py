@@ -7,7 +7,7 @@ GREEN = Color(0, 255, 0)
 BLUE = Color(0, 0, 255)
 YELLOW = Color(255, 255, 0)
 ORANGE = Color(255, 102, 0)
-PINK = Color(255, 182, 193)
+PINK = Color(255, 105, 180)
 PURPLE = Color(128, 0, 128)
 
 def get_colour_from_str(colour_str: str) -> Color:
